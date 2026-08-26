@@ -14,25 +14,26 @@ jobs:
         with:
           node-version: 24
 
-      - name: Initialize Electron App
+      - name: Build Custom Package Structure
         run: |
-          npm init -y
-          npm install electron electron-packager --save-dev
+          # Force clean package initialization
+          echo '{"name": "html5game", "version": "1.0.0", "author": "Player", "description": "My Game", "main": "main.js"}' > package.json
           
-          # Inject required fields into package.json so electron-packager doesn't crash
-          npx json -I -f package.json -e "this.version='1.0.0'; this.author='Player'; this.description='My HTML5 Game'" 2>/dev/null || true
+          # Create an flawless desktop container window script
+          echo "const { app, BrowserWindow } = require('electron');" > main.js
+          echo "function createWindow () { const win = new BrowserWindow({ width: 800, height: 600, autoHideMenuBar: true, webPreferences: { nodeIntegration: false } }); win.loadFile('index.html'); }" >> main.js
+          echo "app.whenReady().then(createWindow);" >> main.js
           
-          # If json utility isn't installed, force overwrite package.json with standard structure
-          echo '{"name": "mygame", "version": "1.0.0", "author": "Player", "description": "Game", "main": "main.js", "devDependencies": {"electron": "^30.0.0", "electron-packager": "^17.0.0"}}' > package.json
-          
-          # Create the boot script
-          echo "const { app, BrowserWindow } = require('electron'); function createWindow () { const win = new BrowserWindow({ width: 800, height: 600, autoHideMenuBar: true }); win.loadFile('index.html'); } app.whenReady().then(createWindow);" > main.js
+          # Clean install compiler packages locally
+          npm install electron@latest @electron/packager@latest --save-dev
 
-      - name: Build Windows EXE
-        run: npx electron-packager . MyGame --platform=win32 --arch=x64 --out=dist --overwrite
+      - name: Compile Standalone Windows EXE
+        run: |
+          # Run compilation with direct script execution to avoid terminal boundary errors
+          npx electron-packager . MyGame --platform=win32 --arch=x64 --out=dist --overwrite --no-prune
 
-      - name: Upload Finished EXE
+      - name: Zip and Upload Finished Executable
         uses: actions/upload-artifact@v4
         with:
-          name: MyGame-Windows
-          path: dist/MyGame-win32-x64/
+          name: MyGame-Windows-Package
+          path: dist/
