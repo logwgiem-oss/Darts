@@ -1,0 +1,31 @@
+name: Build Desktop Game
+on: [push, workflow_dispatch]
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-size: 20
+
+      - name: Initialize Electron App
+        run: |
+          npm init -y
+          npm install electron electron-packager --save-dev
+          echo "const { app, BrowserWindow } = require('electron'); function createWindow () { const win = new BrowserWindow({ width: 800, height: 600, autoHideMenuBar: true }); win.loadFile('index.html'); } app.whenReady().then(createWindow);" > main.js
+          sed -i 's/"main": "index.js"/"main": "main.js"/' package.json
+
+      - name: Build Windows EXE
+        run: npx electron-packager . MyGame --platform=win32 --arch=x64 --out=dist
+
+      - name: Upload Finished EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyGame-Windows
+          path: dist/MyGame-win32-x64/
