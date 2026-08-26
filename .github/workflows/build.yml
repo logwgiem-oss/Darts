@@ -1,10 +1,10 @@
-name: Build Desktop Game
+name: Build Single Portable EXE
 on: [push, workflow_dispatch]
 
 jobs:
   release:
-    name: Build and Release
-    runs-on: ubuntu-latest
+    name: Build Single Portable EXE
+    runs-on: windows-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -14,26 +14,22 @@ jobs:
         with:
           node-version: 24
 
-      - name: Build Custom Package Structure
+      - name: Configure Single File Settings
         run: |
-          # Force clean package initialization
-          echo '{"name": "html5game", "version": "1.0.0", "author": "Player", "description": "My Game", "main": "main.js"}' > package.json
+          # Create a perfectly clean package file telling electron-builder to pack into ONE single file
+          echo '{"name": "myportablegame", "version": "1.0.0", "author": "Player", "description": "My Game", "main": "main.js", "scripts": {"build": "electron-builder --win nsis"}, "build": {"appId": "com.portable.game", "win": {"target": [{"target": "nsis", "arch": ["x64"]}]}, "nsis": {"oneClick": true, "perMachine": false, "allowToChangeInstallationDirectory": false, "createDesktopShortcut": true, "runAfterFinish": true}}}' > package.json
           
-          # Create an flawless desktop container window script
-          echo "const { app, BrowserWindow } = require('electron');" > main.js
-          echo "function createWindow () { const win = new BrowserWindow({ width: 800, height: 600, autoHideMenuBar: true, webPreferences: { nodeIntegration: false } }); win.loadFile('index.html'); }" >> main.js
-          echo "app.whenReady().then(createWindow);" >> main.js
+          # Create the native boot script
+          echo "const { app, BrowserWindow } = require('electron'); function createWindow () { const win = new BrowserWindow({ width: 800, height: 600, autoHideMenuBar: true }); win.loadFile('index.html'); } app.whenReady().then(createWindow);" > main.js
           
-          # Clean install compiler packages locally
-          npm install electron@latest @electron/packager@latest --save-dev
+          # Install the single-file packaging engine
+          npm install electron@latest electron-builder@latest --save-dev
 
-      - name: Compile Standalone Windows EXE
-        run: |
-          # Run compilation with direct script execution to avoid terminal boundary errors
-          npx electron-packager . MyGame --platform=win32 --arch=x64 --out=dist --overwrite --no-prune
+      - name: Run Single EXE Compiler
+        run: npm run build
 
-      - name: Zip and Upload Finished Executable
+      - name: Upload Clean Standalone EXE File
         uses: actions/upload-artifact@v4
         with:
-          name: MyGame-Windows-Package
-          path: dist/
+          name: Standalone-Portable-Game
+          path: dist/*.exe
