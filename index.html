@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Darts</title>
+<style>
+body {
+  background: #0b0d10;
+  color: #fff;
+  font-family: sans-serif;
+  text-align: center;
+}
+#b {
+  width: 440px;
+  margin: 5px auto;
+}
+canvas {
+  background: #11141a;
+  border-radius: 50%;
+}
+#ui {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+button {
+  background: #38bdf8;
+  border: none;
+  padding: 10px;
+  font-weight: bold;
+  border-radius: 6px;
+  display: none;
+}
+</style>
+</head>
+<body>
+<div id="b">
+  <canvas id="dc" 
+          width="440" 
+          height="440">
+  </canvas>
+</div>
+<div id="ui">
+  <div style="color:#38bdf8">
+    P1: <b id="ps">501</b>
+  </div>
+  <div style="color:#ef4444">
+    Bot: <b id="bs">501</b>
+  </div>
+</div>
+<h2 id="msg">SPACE TO AIM</h2>
+<button id="rstBtn" 
+  onclick="resetMatch()">
+  PLAY AGAIN
+</button>
+<script>
+const cv = 
+  document.getElementById('dc');
+const cx = cv.getContext('2d');
+const CX = 220, CY = 220;
+const BR = 175;
+
+const S_MAP = 
+  "20,1,18,4,13,6,10,15,2,17," +
+  "3,19,7,16,8,11,14,9,12,5";
+
+function getNumAtSlice(i) {
+  let arr = S_MAP.split(",");
+  return parseInt(arr[i]);
+}
+
+function getSliceFromNum(val) {
+  let arr = S_MAP.split(",");
+  return arr.indexOf(String(val));
+}
+
+let st = "X", turn = "p";
+let sc = {p: 501, b: 501};
+let thrown = 0, turnSc = 0;
+let pins = [];
+let cr = {
+  x: CX, y: CY, 
+  sx: 4.5, sy: 5.5, 
+  dx: 1, dy: 1
+};
+let tg = {x: 0, y: 0};
+let fl = {
+  x: 0, y: 0, 
+  pr: 0, s: 1
+};
+
+function draw() {
+  cx.clearRect(0,0,440,440);
+  cx.fillStyle = "#1e222b";
+  cx.beginPath();
+  cx.arc(CX,CY,BR+35,0,Math.PI*2);
+  cx.fill();
+  cx.fillStyle = "#090a0d";
+  cx.beginPath();
+  cx.arc(CX,CY,BR+18,0,Math.PI*2);
+  cx.fill();
+
+  for (let i = 0; i < 20; i++) {
+    let s = (i * 2 * Math.PI / 20) - 
+            (Math.PI / 2) - 
+            (Math.PI / 20);
+    let e = s + (2 * Math.PI / 20);
+    let c1 = i % 2 === 0 ? 
+             "#f1ebd9" : "#1f241d";
+    let c2 = i % 2 === 0 ? 
+             "#c61d33" : "#1a6b39";
+    slice(BR, s, e, c1);
+    slice(BR, s, e, c2, BR - 12);
+    slice(BR - 12, s, e, c1, 112);
+    slice(112, s, e, c2, 98);
+    slice(98, s, e, c1, 24);
+    cx.strokeStyle = 
+      "rgba(240,240,245,0.25)";
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(CX, CY);
+    cx.lineTo(
+      CX + Math.cos(s) * BR, 
+      CY + Math.sin(s) * BR
+    );
+    cx.stroke();
+    cx.save();
+    cx.translate(CX, CY);
+    cx.rotate(s + (Math.PI / 20) + 
+              (Math.PI / 2));
+    cx.fillStyle = "#f8fafc";
+    cx.font = "bold 15px Arial";
+    cx.textAlign = "center";
+    cx.fillText(
+      getNumAtSlice(i), 0, -BR - 4
+    );
+    cx.restore();
+  }
+
+  cx.strokeStyle = 
+    "rgba(240,240,245,0.4)";
+  let rings = 
+    [BR, BR-12, 112, 98, 24, 11];
+  rings.forEach(r => {
+    cx.beginPath();
+    cx.arc(CX,CY,r,0,Math.PI*2);
+    cx.stroke();
+  });
+
+  cx.fillStyle = "#1a6b39";
+  cx.beginPath();
+  cx.arc(CX, CY, 24, 0, Math.PI*2);
+  cx.fill();
+  cx.fillStyle = "#c61d33";
+  cx.beginPath();
+  cx.arc(CX, CY, 11, 0, Math.PI*2);
+  cx.fill();
+
+  pins.forEach(p => {
+    let dc = p.p == "p" ? 
+             "#38bdf8" : "#ef4444";
+    cx.fillStyle = "#000000";
+    cx.beginPath();
+    cx.arc(p.x, p.y, 4, 0, Math.PI*2);
+    cx.fill();
+    cx.fillStyle = dc;
+    cx.beginPath();
+    cx.arc(p.x, p.y, 3.5, 0, Math.PI*2);
+    cx.fill();
+    cx.strokeStyle = "#ffffff";
+    cx.lineWidth = 1;
+    cx.stroke();
+  });
+
+  let isAim = (st == "X" || st == "Y");
+  if (isAim && turn == "p") {
+    cx.strokeStyle = "#38bdf8";
+    cx.lineWidth = 1.5;
+    cx.beginPath();
+    cx.arc(cr.x, cr.y, 8, 0, 
+           Math.PI*2);
+    cx.stroke();
+    cx.beginPath();
+    cx.moveTo(cr.x-12, cr.y);
+    cx.lineTo(cr.x+12, cr.y);
+    cx.moveTo(cr.x, cr.y-12);
+    cx.lineTo(cr.x, cr.y+12);
+    cx.stroke();
+  }
+
+  if (st === "FL") {
+    let fc = turn == "p" ? 
+             "#38bdf8" : "#ef4444";
+    cx.fillStyle = fc;
+    cx.beginPath();
+    cx.arc(fl.x, fl.y, 8*fl.s, 0, 
+           Math.PI*2);
+    cx.fill();
+    cx.strokeStyle = "#ffffff";
+    cx.lineWidth = 1.5;
+    cx.stroke();
+  }
+}
+
+function slice(r,s,e,c,ir=0) {
+  cx.beginPath();
+  cx.arc(CX, CY, r, s, e);
+  if (ir > 0) {
+    cx.arc(CX, CY, ir, e, s, true);
+  } else {
+    cx.lineTo(CX, CY);
+  }
+  cx.fillStyle = c;
+  cx.fill();
+}
+
+function calcScore(x, y) {
+  let dx = x - CX, dy = y - CY;
+  let d = Math.sqrt(dx*dx + dy*dy);
+  if (d > BR) {
+    return {v: 0, t: "Single", b: 0};
+  }
+  if (d <= 11) {
+    return {v: 50, t: "Double", b: 25};
+  }
+  if (d <= 24) {
+    return {v: 25, t: "Single", b: 25};
+  }
+
+  let a = Math.atan2(dy, dx) + 
+          (Math.PI / 2) + 
+          (Math.PI / 20);
+  if (a < 0) a += Math.PI*2;
+  let idx = Math.floor(
+    (a / (Math.PI * 2)) * 20
+  ) % 20;
+  let base = getNumAtSlice(idx);
+  
+  if (d >= BR-12 && d <= BR) {
+    return {v: base*2, t: "Double", b: base};
+  }
+  if (d >= 98 && d <= 112) {
+    return {v: base*3, t: "Triple", b: base};
+  }
+  return {v: base, t: "Single", b: base};
+}
+
+function tick() {
+  // FIXED: Expanded limits so crosshairs can reach outside double rings
+  let maxL = CX + BR + 20;
+  let minL = CX - BR - 20;
+  if (st === "X") {
+    cr.x += cr.sx * cr.dx;
+    if (cr.x > maxL) { 
+      cr.x = maxL; cr.dx = -1; 
+    }
+    else if (cr.x < minL) { 
+      cr.x = minL; cr.dx = 1; 
+    }
+  } else if (st === "Y") {
+    cr.y += cr.sy * cr.dy;
+    if (cr.y > maxL) { 
+      cr.y = maxL; cr.dy = -1; 
+    }
+    else if (cr.y < minL) { 
+      cr.y = minL; cr.dy = 1; 
+    }
+  } else if (st === "FL") {
+    fl.pr += 0.05;
+    fl.x = CX + (tg.x-CX)*fl.pr;
+    fl.y = 440 + (tg.y-440)*fl.pr - 
+           (55*Math.sin(
+             fl.pr*Math.PI
+           ));
+    fl.s = 2.5 - (fl.pr*1.5);
+    if (fl.pr >= 1) resolve();
+  }
+  draw();
+  requestAnimationFrame(tick);
+}
+
+function resolve() {
+  let res = calcScore(tg.x, tg.y);
+  let rem = sc[turn] - res.v;
+  thrown++;
+
+  if (rem === 0 && 
+      res.t === "Double") {
+    sc[turn] = 0;
+    pins.push({
+      x: tg.x, y: tg.y, p: turn
+    });
+    let label = turn=="p" ? 
+      "🏆 MATCH WON!" : "🤖 BOT WINS!";
+    document.getElementById('msg')
+            .innerText = label;
+    st = "OVER";
+    document.getElementById('rstBtn')
+            .style.display = "inline";
+    ui();
+    return;
+  }
+
+  let b1 = (rem < 0);
+  let b2 = (rem === 1);
+  let b3 = (rem === 0 && 
+            res.t !== "Double");
+  if (b1 || b2 || b3) {
+    // FIXED: Prints the authentic segment name ("Double 18")
+    let dispName = res.t == "Single" ? 
+                   res.v : `${res.t} ${res.b}`;
+    let lbl = `BUST! Hit ${dispName}`;
+    document.getElementById('msg')
+            .innerText = lbl;
+    sc[turn] += turnSc;
+    nextTurn();
+  } else {
+    sc[turn] = rem;
+    turnSc += res.v;
+    pins.push({
+      x: tg.x, y: tg.y, p: turn
+    });
+    if (thrown >= 3) nextTurn();
+    else {
+      st = turn=="p" ? "X" : "BOT";
+      if (turn == "b") {
+        setTimeout(bot, 800);
+      }
+    }
+  }
+  ui();
+}
+
+function nextTurn() {
+  thrown = 0; turnSc = 0;
+  if (turn == "p") { 
+    turn = "b"; st = "BOT"; 
+    setTimeout(bot, 800); 
+  }
+  else { 
+    turn = "p"; st = "X"; 
+    pins = []; 
+  }
+  ui();
+}
+
+function bot() {
+  if (st !== "BOT") return;
+  let bSc = sc.b, tx = CX, ty = CY;
+  if (bSc > 40) {
+    let opts = [
+      {idx:0, r:60}, 
+      {idx:11, r:60}, 
+      {idx:2, r:60}
+    ];
+    let pick = opts[Math.floor(
+      Math.random()*opts.length
+    )];
+    let a = (pick.idx*2*Math.PI/20) - 
+            (Math.PI/2);
+    tx = CX + Math.cos(a)*pick.r; 
+    ty = CY + Math.sin(a)*pick.r;
+  } else if (bSc%2===0 && bSc<=40) {
+    let i = getSliceFromNum(bSc/2);
+    let a = (i*2*Math.PI/20) - 
+            (Math.PI/2);
+    tx = CX + Math.cos(a)*(BR-6); 
+    ty = CY + Math.sin(a)*(BR-6);
+  } else {
+    let a = (11*2*Math.PI/20) - 
+            (Math.PI/2);
+    tx = CX + Math.cos(a)*60; 
+    ty = CY + Math.sin(a)*60;
+  }
+  let spread = 35;
+  let ra = Math.random()*Math.PI*2;
+  let rd = Math.random()*spread;
+  tg.x = tx + Math.cos(ra)*rd; 
+  tg.y = ty + Math.sin(ra)*rd;
+  fl.pr = 0; st = "FL";
+}
+
+function input() {
+  let bad = (turn !== "p" || 
+             st === "OVER");
+  if (bad) return;
+  if (st === "X") st = "Y";
+  else if (st === "Y") { 
+    tg.x = cr.x; tg.y = cr.y; 
+    fl.pr = 0; st = "FL"; 
+  }
+}
+
+function resetMatch() {
+  sc.p = 501; sc.b = 501; 
+  thrown = 0; turnSc = 0; 
+  pins = []; turn = "p"; st = "X";
+  document.getElementById('msg')
+          .innerText = "SPACE TO AIM";
+  document.getElementById('rstBtn')
+          .style.display = "none";
+  ui();
+}
+
+window.addEventListener('keydown', 
+  (e) => { 
+    if (e.code === 'Space') { 
+      e.preventDefault(); 
+      input(); 
+    } 
+  }
+);
+cv.addEventListener('mousedown', 
+  (e) => { 
+    e.preventDefault(); 
+    input(); 
+  }
+);
+
+function ui() {
+  document.getElementById('ps')
+          .innerText = sc.p;
+  document.getElementById('bs')
+          .innerText = sc.b;
+}
+ui(); tick();
+</script>
+</body>
+</html>
