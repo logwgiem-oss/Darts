@@ -18,11 +18,18 @@ jobs:
         run: |
           npm init -y
           npm install electron electron-packager --save-dev
+          
+          # Inject required fields into package.json so electron-packager doesn't crash
+          npx json -I -f package.json -e "this.version='1.0.0'; this.author='Player'; this.description='My HTML5 Game'" 2>/dev/null || true
+          
+          # If json utility isn't installed, force overwrite package.json with standard structure
+          echo '{"name": "mygame", "version": "1.0.0", "author": "Player", "description": "Game", "main": "main.js", "devDependencies": {"electron": "^30.0.0", "electron-packager": "^17.0.0"}}' > package.json
+          
+          # Create the boot script
           echo "const { app, BrowserWindow } = require('electron'); function createWindow () { const win = new BrowserWindow({ width: 800, height: 600, autoHideMenuBar: true }); win.loadFile('index.html'); } app.whenReady().then(createWindow);" > main.js
-          sed -i 's/"main": "index.js"/"main": "main.js"/' package.json
 
       - name: Build Windows EXE
-        run: npx electron-packager . MyGame --platform=win32 --arch=x64 --out=dist
+        run: npx electron-packager . MyGame --platform=win32 --arch=x64 --out=dist --overwrite
 
       - name: Upload Finished EXE
         uses: actions/upload-artifact@v4
