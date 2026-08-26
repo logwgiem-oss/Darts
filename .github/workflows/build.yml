@@ -1,4 +1,4 @@
-name: Build Single Portable EXE
+name: Build Pure Portable EXE
 on: [push, workflow_dispatch]
 
 jobs:
@@ -14,18 +14,18 @@ jobs:
         with:
           node-version: 24
 
-      - name: Configure Single File Settings
+      - name: Configure Pure Portable Settings
         run: |
-          # Create a perfectly clean package file telling electron-builder to pack into ONE single file
-          echo '{"name": "myportablegame", "version": "1.0.0", "author": "Player", "description": "My Game", "main": "main.js", "scripts": {"build": "electron-builder --win nsis"}, "build": {"appId": "com.portable.game", "win": {"target": [{"target": "nsis", "arch": ["x64"]}]}, "nsis": {"oneClick": true, "perMachine": false, "allowToChangeInstallationDirectory": false, "createDesktopShortcut": true, "runAfterFinish": true}}}' > package.json
+          # Force configure package.json to pack as a completely unzipped, single-file PORTABLE target
+          echo '{"name": "myportablegame", "version": "1.0.0", "author": "Player", "description": "My Portable Game", "main": "main.js", "scripts": {"build": "electron-builder --win portable"}, "build": {"appId": "com.portable.game", "win": {"target": [{"target": "portable", "arch": ["x64"]}]}}}' > package.json
           
           # Create the native boot script
           echo "const { app, BrowserWindow } = require('electron'); function createWindow () { const win = new BrowserWindow({ width: 800, height: 600, autoHideMenuBar: true }); win.loadFile('index.html'); } app.whenReady().then(createWindow);" > main.js
           
-          # Install the single-file packaging engine
+          # Install light dependencies
           npm install electron@latest electron-builder@latest --save-dev
 
-      - name: Run Single EXE Compiler
+      - name: Run Portable Compiler
         run: npm run build
 
       - name: Upload Clean Standalone EXE File
